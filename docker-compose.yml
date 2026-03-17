@@ -3,8 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: private-torrent-torznab:local
-    container_name: private-torrent-torznab
+    image: stash-torznab:local
+    container_name: stash-torznab
     ports:
       - "3000:3000"
     env_file:

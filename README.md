@@ -82,13 +82,13 @@ npm run typecheck
 Build image:
 
 ```bash
-docker build -t private-torrent-torznab:local .
+docker build -t stash-torznab:local .
 ```
 
 Run container:
 
 ```bash
-docker run --rm -p 3000:3000 --env-file .env private-torrent-torznab:local
+docker run --rm -p 3000:3000 --env-file .env stash-torznab:local
 ```
 
 Notes:

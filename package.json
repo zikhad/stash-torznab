@@ -1,5 +1,5 @@
 {
-  "name": "private-torrent-torznab",
+  "name": "stash-torznab",
   "version": "1.0.0",
   "description": "Generate a Torznab feed from a private torrent trackers using Stash as the source of scene data.",
   "main": "dist/app.js",
