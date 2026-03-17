@@ -77,6 +77,53 @@ Type check:
 npm run typecheck
 ```
 
+## Docker
+
+Build image:
+
+```bash
+docker build -t private-torrent-torznab:local .
+```
+
+Run container:
+
+```bash
+docker run --rm -p 3000:3000 --env-file .env private-torrent-torznab:local
+```
+
+Notes:
+
+- The Dockerfile runs `npm run build` and starts with `npm run start`.
+- `TRACKERS_CONFIG_PATH` defaults to `./trackers.config.json` in the image.
+
+## Docker Compose
+
+This project includes `docker-compose.yml`.
+
+Start:
+
+```bash
+docker-compose up --build -d
+```
+
+Logs:
+
+```bash
+docker-compose logs -f app
+```
+
+Stop:
+
+```bash
+docker-compose down
+```
+
+Notes:
+
+- Compose loads environment values from `.env`.
+- Compose mounts `./trackers.config.json` to `/app/trackers.config.json` as read-only.
+- If your machine supports the plugin command, you can use `docker compose` instead of `docker-compose`.
+
 ## API Endpoints
 
 ### `GET /api?t=caps`
@@ -138,4 +185,4 @@ Array order defines priority (first = highest).
 ## Notes
 
 - `seeders`, `peers`, and `size` are currently static in RSS output.
-- URL aliases are enabled via TypeScript paths (`@/*`, `@components/*`) and rewritten on build using `tsc-alias`.
+- URL aliases are enabled via TypeScript paths (`@components/*`) and rewritten on build using `tsc-alias`.
