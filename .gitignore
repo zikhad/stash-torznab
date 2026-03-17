@@ -2,5 +2,6 @@ node_modules/
 bruno/
 .env
 dist/
+.DS_Store
 
 trackers.config.json

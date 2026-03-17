@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: private-torrent-torznab:local
+    container_name: private-torrent-torznab
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      TRACKERS_CONFIG_PATH: /app/trackers.config.json
+    volumes:
+      - ./trackers.config.json:/app/trackers.config.json:ro
+    restart: unless-stopped
