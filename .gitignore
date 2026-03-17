@@ -1,0 +1,6 @@
+node_modules/
+bruno/
+.env
+dist/
+
+trackers.config.json

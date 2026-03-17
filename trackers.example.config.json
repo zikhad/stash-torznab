@@ -1,0 +1,16 @@
+[
+  {
+    "name": "tracker_one",
+    "host": "tracker-one.example",
+    "path": "details.php",
+    "passkey": "replace_with_tracker_one_passkey",
+    "downloadUrlTemplate": "https://tracker-one.example/download.php?id={id}&passkey={passkey}"
+  },
+  {
+    "name": "tracker_two",
+    "host": "tracker-two.example",
+    "path": "torrents.php",
+    "passkey": "replace_with_tracker_two_passkey",
+    "downloadUrlTemplate": "https://tracker-two.example/torrents.php?action=download&id={id}&torrent_pass={passkey}"
+  }
+]

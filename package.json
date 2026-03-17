@@ -1,0 +1,35 @@
+{
+  "name": "private-torrent-torznab",
+  "version": "1.0.0",
+  "description": "Generate a Torznab feed from a private torrent trackers using Stash as the source of scene data.",
+  "main": "dist/app.js",
+  "scripts": {
+    "clean": "rimraf dist",
+    "prebuild": "npm run clean",
+    "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
+    "start": "node dist/app.js",
+    "dev": "nodemon --watch src --ext ts --exec \"tsx src/app.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["torrent", "rss", "torznab", "stash", "private trackers"],
+  "author": "Zikhad",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "lru-cache": "^11.2.7",
+    "luxon": "^3.7.2",
+    "rss-parser": "^3.13.0",
+    "xmlbuilder2": "^4.0.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^25.5.0",
+    "nodemon": "^3.1.14",
+    "rimraf": "^6.1.3",
+    "tsc-alias": "^1.8.16",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
