@@ -1,8 +1,8 @@
 import express, { Response } from "express";
-import cron from "node-cron";
 import { create } from "xmlbuilder2";
 import { config } from "dotenv";
 
+import { Scheduler } from "@components/scheduler";
 import { StashExtractor } from "@components/stash-extractor";
 import { normalizeDate } from "@components/utils";
 import { Trackers } from "@components/trackers";
@@ -105,38 +105,16 @@ async function cacheTorrents() {
   }
 }
 
-let isCaching = false;
-
-async function runCacheTorrents(trigger: "startup" | "cron") {
-  if (isCaching) {
-    console.log(`Skipping ${trigger} cache run — previous run still in progress.`);
-    return;
-  }
-  isCaching = true;
-  try {
-    await cacheTorrents();
-    console.log(`Torrent caching complete (${trigger}).`);
-  } catch (err) {
-    console.error(`Error during torrent caching (${trigger}):`, err);
-  } finally {
-    isCaching = false;
-  }
-}
-
-runCacheTorrents("startup");
-
 const DEFAULT_CACHE_CRON = "0 */6 * * *";
 const cacheCronExpression = process.env.CACHE_CRON ?? DEFAULT_CACHE_CRON;
 
-if (!cron.validate(cacheCronExpression)) {
-  console.warn(`Invalid CACHE_CRON value "${cacheCronExpression}", falling back to "${DEFAULT_CACHE_CRON}".`);
-  cron.schedule(DEFAULT_CACHE_CRON, () => { void runCacheTorrents("cron"); });
-} else {
-  cron.schedule(cacheCronExpression, () => { void runCacheTorrents("cron"); });
-}
-
-const activeCron = cron.validate(cacheCronExpression) ? cacheCronExpression : DEFAULT_CACHE_CRON;
-console.log(`Scheduled torrent cache refresh with cron: "${activeCron}".`);
+const torrentCacheScheduler = new Scheduler(
+  "torrent cache refresh",
+  cacheCronExpression,
+  DEFAULT_CACHE_CRON,
+  cacheTorrents
+);
+torrentCacheScheduler.start();
 
 app.get("/api", async (req, res) => {
   const type = req.query.t;
