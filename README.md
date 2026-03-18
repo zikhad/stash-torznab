@@ -9,7 +9,7 @@ Generate a Torznab-compatible RSS feed from Stash scenes and proxy torrent downl
 - Filters scene URLs by tracker host + valid torrent path
 - Prioritizes trackers in configured order
 - Proxies torrent downloads via `/download/:tracker/:id`
-- In-memory caching for Stash scene queries
+- Persistent SQLite-backed caching for Stash scenes and tracker-derived torrent metadata
 
 ## Requirements
 
@@ -50,7 +50,9 @@ Required:
 Optional:
 
 - `CACHE_TTL_MS` (default `21600000`)
+- `CACHE_SQLITE_PATH` (default `./data/cache.sqlite`)
 - `CACHE_CRON` (default `0 */6 * * *`)
+- `CACHE_MAINTENANCE_CRON` (default `0 3 * * *`)
 
 ## Run
 
@@ -155,6 +157,18 @@ curl -L "http://127.0.0.1:3000/download/tracker/1488" -o torrent.torrent
 
 Returns raw mapped scene data as JSON.
 
+### `GET /maintenance/cache/stats`
+
+Returns cache stats for internal namespaces (`stash-scenes` and `tracker-scene-torrents`).
+
+### `POST /maintenance/cache/prune`
+
+Prunes expired cache entries and returns updated cache stats.
+
+### `POST /maintenance/cache/optimize`
+
+Runs SQLite WAL checkpoint (`TRUNCATE`) and `VACUUM` for opened cache databases.
+
 ## Project Structure
 
 ```text
@@ -187,4 +201,5 @@ Array order defines priority (first = highest).
 
 - `seeders` and `peers` are currently static in RSS output.
 - Torrent cache prewarming runs at startup and then on the `CACHE_CRON` schedule.
+- SQLite cache file maintenance (WAL checkpoint + `VACUUM`) runs at startup and then on the `CACHE_MAINTENANCE_CRON` schedule.
 - URL aliases are enabled via TypeScript paths (`@components/*`) and rewritten on build using `tsc-alias`.

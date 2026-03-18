@@ -56,7 +56,7 @@ export class Trackers {
     private readonly trackers: TrackerConfig[];
     private readonly trackersByName: Map<string, TrackerConfig>;
 
-    private readonly cache = new Cache<Torrent>();
+    private readonly cache = new Cache<Torrent>({ namespace: "tracker-scene-torrents" });
 
     /**
      * @param trackers - Ordered list of tracker configurations (highest priority first).
@@ -229,6 +229,16 @@ export class Trackers {
             performers: scene.performers.map(p => p.performer.name).join(", "),
             tags: scene.tags.map(t => t.name),
         }));
+    }
+
+    /** Returns cache stats for tracker-derived torrent metadata cache. */
+    public getCacheStats() {
+        return this.cache.getStats();
+    }
+
+    /** Prunes expired entries from persistent cache storage. */
+    public pruneCache(): number {
+        return this.cache.pruneExpired();
     }
 
     /**
