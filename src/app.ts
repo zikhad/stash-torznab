@@ -1,5 +1,6 @@
 import express, { Response } from "express";
 import { create } from "xmlbuilder2";
+import { config } from "dotenv";
 
 import { StashExtractor } from "@components/stash-extractor";
 import { normalizeDate } from "@components/utils";
@@ -79,6 +80,8 @@ function sendResults(res: Response, scenes: Scene[]) {
   return res.type("application/xml").send(root.end({ prettyPrint: true }));
 }
 
+
+config(); // Load environment variables from .env file
 
 const app = express();
 

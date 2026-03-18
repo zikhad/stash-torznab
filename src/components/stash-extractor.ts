@@ -1,4 +1,3 @@
-import { config } from "dotenv";
 import { Cache } from "./cache";
 
 type CountResponse = {
@@ -29,50 +28,46 @@ export class StashExtractor {
     private readonly cache = new Cache<Scene[]>();
 
     private readonly countQuery = `
-    query getCount($input: SceneQueryInput!) {
-        queryScenes(input: $input) {
-            count
+        query getCount($input: SceneQueryInput!) {
+            queryScenes(input: $input) {
+                count
+            }
         }
-    }
-`;
+    `;
 
     private readonly scenesQuery = `
-    query queryScenes($input: SceneQueryInput!) {
-        queryScenes(input: $input) {
-            scenes {
-                id
-                title
-                details
-                release_date
-                images {
-                    url
-                }
-                studio {
+        query queryScenes($input: SceneQueryInput!) {
+            queryScenes(input: $input) {
+                scenes {
                     id
-                    name
-                }
-                performers {
-                    performer {
+                    title
+                    details
+                    release_date
+                    images {
+                        url
+                    }
+                    studio {
                         id
                         name
-                        gender
                     }
-                }
-                urls {
-                    url
-                }
-                tags {
-                    id
-                    name
+                    performers {
+                        performer {
+                            id
+                            name
+                            gender
+                        }
+                    }
+                    urls {
+                        url
+                    }
+                    tags {
+                        id
+                        name
+                    }
                 }
             }
         }
-    }
-`;
-
-    constructor() {
-        config(); // Load .env variables
-    }
+    `;
 
     /**
      * Fetches scenes from Stash, caching results by title query.
