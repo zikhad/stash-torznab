@@ -200,23 +200,20 @@ export class Trackers {
         const [url] = torrentURLs;
         const link = this.createProxyDownloadURL(url);
 
-        return this.cache.getOrSet(scene.id, async () => {
-            console.log(`Cache miss for scene "${scene.title}" (${scene.id}), fetching torrent size...`);
-            return {
-                title: scene.title,
-                guid: scene.id,
-                link: `${process.env.STASH_BASE_URL}/scenes/${scene.id}`,
-                downloadLink: link,
-                pubDate: normalizeDate(scene.release_date),
-                size: await this.extractTorrentSize(link),
-                category: "6000",
-                seeders: 0,
-                peers: 0,
-                studio: scene.studio.name,
-                performers: scene.performers.map(p => p.performer.name).join(", "),
-                tags: scene.tags.map(t => t.name),
-            };
-        });
+        return this.cache.getOrSet(scene.id, async () => ({
+            title: scene.title,
+            guid: scene.id,
+            link: `${process.env.STASH_BASE_URL}/scenes/${scene.id}`,
+            downloadLink: link,
+            pubDate: normalizeDate(scene.release_date),
+            size: await this.extractTorrentSize(link),
+            category: "6000",
+            seeders: 0,
+            peers: 0,
+            studio: scene.studio.name,
+            performers: scene.performers.map(p => p.performer.name).join(", "),
+            tags: scene.tags.map(t => t.name),
+        }));
     }
 
     /**

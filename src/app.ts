@@ -94,9 +94,14 @@ async function cacheTorrents() {
   const scenes = await stashExtractor.fetchScenes();
   const filtered = trackers.filterScenesByTrackers(scenes);
   console.log(`Caching torrents for ${filtered.length} scenes...`);
-  for (const scene of filtered) {
+  for (const [index, scene] of filtered.entries()) {
     const torrent = await trackers.getTorrentFromScene(scene);
-    console.log(`Cached torrent for scene "${scene.title}" (${scene.id}): ${torrent ? "found" : "not found"}`);
+    if (!torrent) {
+      console.warn(`No torrent found for scene "${scene.title}" (${scene.id})`);
+      continue;
+    }
+    const progress = ((index + 1) / filtered.length) * 100;
+    console.log(`[${(index + 1)}/${filtered.length} (${progress.toFixed(0)}%)]: Cached torrrent - "${torrent.title}" (${torrent.guid})`);
   }
 }
 
