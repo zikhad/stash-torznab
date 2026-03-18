@@ -49,7 +49,8 @@ Required:
 
 Optional:
 
-- `CACHE_TTL_MS` (default `300000`)
+- `CACHE_TTL_MS` (default `21600000`)
+- `CACHE_CRON` (default `0 */6 * * *`)
 
 ## Run
 
@@ -184,5 +185,6 @@ Array order defines priority (first = highest).
 
 ## Notes
 
-- `seeders`, `peers`, and `size` are currently static in RSS output.
+- `seeders` and `peers` are currently static in RSS output.
+- Torrent cache prewarming runs at startup and then on the `CACHE_CRON` schedule.
 - URL aliases are enabled via TypeScript paths (`@components/*`) and rewritten on build using `tsc-alias`.

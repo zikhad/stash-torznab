@@ -27,3 +27,11 @@ type Scene = {
     name: string;
   }[];
 }
+
+declare module "bencoding" {
+  const bencoding: {
+    decode(input: Uint8Array | Buffer): unknown;
+  };
+
+  export = bencoding;
+}

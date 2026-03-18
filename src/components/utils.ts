@@ -1,5 +1,9 @@
 import { DateTime } from "luxon";
 
+/**
+ * Normalizes partial/full scene dates into RFC-style HTTP date strings.
+ * @param input - Raw date value from scene metadata.
+ */
 export function normalizeDate(input: string) {
   if (!input) return DateTime.utc().toHTTP();
 
