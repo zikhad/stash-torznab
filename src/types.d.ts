@@ -1,16 +1,22 @@
-type SceneUrl = {
+type URLs = {
   url: string;
+}
+
+declare module "bencoding" {
+  const bencoding: {
+    decode(input: Uint8Array | Buffer): unknown;
+  };
+
+  export = bencoding;
 }
 
 type Scene = {
   id: string;
   title: string;
   details: string;
-  urls: SceneUrl[];
+  urls: URLs[];
   release_date: string;
-  images: {
-    url: string;
-  }[];
+  images: URLs[];
   studio: {
     id: string;
     name: string;

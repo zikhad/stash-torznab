@@ -1,5 +1,9 @@
 import { DateTime } from "luxon";
 
+/**
+ * Normalizes partial or full ISO-style dates into an HTTP date string.
+ * @param input - Date input from Stash.
+ */
 export function normalizeDate(input: string) {
   if (!input) return DateTime.utc().toHTTP();
 

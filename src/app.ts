@@ -1,3 +1,4 @@
+import { config } from "dotenv";
 import express, { Response } from "express";
 import { create } from "xmlbuilder2";
 
@@ -5,6 +6,7 @@ import { StashExtractor } from "@components/stash-extractor";
 import { normalizeDate } from "@components/utils";
 import { Trackers } from "@components/trackers";
 
+/** Sends the Torznab capabilities document. */
 function sendCaps(res: Response) {
   const xml = create({ version: "1.0" })
     .ele("caps")
@@ -28,7 +30,19 @@ function sendCaps(res: Response) {
   res.type("application/xml").send(xml);
 }
 
-function sendResults(res: Response, scenes: Scene[]) {
+/**
+ * Builds and sends the Torznab RSS response for the provided scenes.
+ * @param res - Express response object.
+ * @param scenes - Scenes to render into the RSS feed.
+ */
+async function sendResults(res: Response, scenes: Scene[]) {
+  const sceneSelections = await Promise.all(
+    scenes.map(async (scene) => ({
+      scene,
+      selectedTorrent: await trackers.findSmallestTorrent(scene.urls),
+    }))
+  );
+
   const root = create({ version: "1.0" })
     .ele("rss", {
       version: "2.0",
@@ -39,9 +53,8 @@ function sendResults(res: Response, scenes: Scene[]) {
     .ele("description").txt("Torznab scenes mapped to torrents").up()
     .ele("link").txt(`${process.env.PROTOCOL}://${process.env.HOST}:${process.env.PORT}`).up();
 
-  for (const scene of scenes) {
-    const url = trackers.findBestTorrentURL(scene.urls);
-    if (!url) continue;
+  for (const { scene, selectedTorrent } of sceneSelections) {
+    if (!selectedTorrent) continue;
 
     const item = root.ele("item");
 
@@ -52,8 +65,8 @@ function sendResults(res: Response, scenes: Scene[]) {
     item.ele("pubDate").txt(normalizeDate(scene.release_date));
 
     item.ele("enclosure", {
-      url: trackers.createProxyDownloadURL(url),
-      length: 0,
+      url: selectedTorrent.proxyUrl,
+      length: selectedTorrent.size,
       type: "application/x-bittorrent"
     });
 
@@ -61,7 +74,7 @@ function sendResults(res: Response, scenes: Scene[]) {
       { name: "category", value: "6000" },
       { name: "seeders", value: "1" },
       { name: "peers", value: "1" },
-      { name: "size", value: "0" },
+      { name: "size", value: `${selectedTorrent.size}` },
       { name: "studio", value: scene.studio.name },
       { name: "performers", value: scene.performers.map(p => p.performer.name).join(", ") },
   ].forEach(attr => {
@@ -79,12 +92,13 @@ function sendResults(res: Response, scenes: Scene[]) {
   return res.type("application/xml").send(root.end({ prettyPrint: true }));
 }
 
+config(); // Load .env variables
 
 const app = express();
 
+const stashExtractor = new StashExtractor();
 const trackers = Trackers.fromConfigFile();
 
-const stashExtractor = new StashExtractor();
 
 app.get("/api", async (req, res) => {
   const type = req.query.t;
@@ -96,7 +110,7 @@ app.get("/api", async (req, res) => {
   if (type === "search") {
     const scenes = await stashExtractor.fetchScenes({ title: (req.query.q as string) ?? "" });
     const filtered = trackers.filterScenesByTrackers(scenes);
-    return sendResults(res, filtered);
+    return await sendResults(res, filtered);
   }
 
   res.status(400).send("unsupported");

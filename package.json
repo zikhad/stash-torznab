@@ -11,10 +11,17 @@
     "dev": "nodemon --watch src --ext ts --exec \"tsx src/app.ts\"",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["torrent", "rss", "torznab", "stash", "private trackers"],
+  "keywords": [
+    "torrent",
+    "rss",
+    "torznab",
+    "stash",
+    "private trackers"
+  ],
   "author": "Zikhad",
   "license": "ISC",
   "dependencies": {
+    "bencoding": "^0.0.1",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "lru-cache": "^11.2.7",

@@ -8,6 +8,7 @@ Generate a Torznab-compatible RSS feed from Stash scenes and proxy torrent downl
 - Uses Stash GraphQL as the scene source
 - Filters scene URLs by tracker host + valid torrent path
 - Prioritizes trackers in configured order
+- Selects the smallest valid torrent payload for each scene
 - Proxies torrent downloads via `/download/:tracker/:id`
 - In-memory caching for Stash scene queries
 
@@ -182,7 +183,25 @@ Each entry supports:
 
 Array order defines priority (first = highest).
 
+## Torrent Selection Logic
+
+For each scene, torrent selection works as follows:
+
+1. Only URLs matching an active tracker are considered.
+2. Each valid tracker URL is converted into a unique candidate using the tracker name and torrent `id`.
+3. The service downloads each candidate `.torrent` file and reads its payload size from the torrent metadata.
+4. If one or more candidate sizes are resolved successfully, the smallest torrent is selected.
+5. If multiple candidates have the same size, tracker order in `trackers.config.json` is used as the tie-breaker.
+6. If all size lookups fail, the service falls back to the first valid candidate by tracker priority.
+
+Implications:
+
+- The first tracker in `trackers.config.json` has the highest fallback priority.
+- Duplicate tracker URLs pointing to the same tracker and torrent `id` are deduplicated before selection.
+- When fallback is used because all size lookups fail, the RSS `size` field is reported as `0`.
+
 ## Notes
 
-- `seeders`, `peers`, and `size` are currently static in RSS output.
+- `seeders` and `peers` are currently static in RSS output.
+- `size` is calculated from the selected `.torrent` metadata and cached in memory.
 - URL aliases are enabled via TypeScript paths (`@components/*`) and rewritten on build using `tsc-alias`.
