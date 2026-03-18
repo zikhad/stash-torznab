@@ -7,6 +7,7 @@ import { StashExtractor } from "@components/stash-extractor";
 import { normalizeDate } from "@components/utils";
 import { Trackers } from "@components/trackers";
 
+/** Sends Torznab capabilities metadata response. */
 function sendCaps(res: Response) {
   const xml = create({ version: "1.0" })
     .ele("caps")
@@ -30,6 +31,11 @@ function sendCaps(res: Response) {
   res.type("application/xml").send(xml);
 }
 
+/**
+ * Renders and sends a Torznab RSS response for the provided scenes.
+ * @param res - Express response object.
+ * @param scenes - Scenes to include in the feed.
+ */
 async function sendResults(res: Response, scenes: Scene[]) {
   const root = create({ version: "1.0" })
     .ele("rss", {
@@ -90,6 +96,9 @@ const trackers = Trackers.fromConfigFile();
 
 const stashExtractor = new StashExtractor();
 
+/**
+ * Preloads torrent metadata cache for all currently filterable scenes.
+ */
 async function cacheTorrents() {
   const scenes = await stashExtractor.fetchScenes();
   const filtered = trackers.filterScenesByTrackers(scenes);

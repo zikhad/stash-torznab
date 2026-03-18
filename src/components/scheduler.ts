@@ -42,6 +42,7 @@ export class Scheduler {
     console.log(`Scheduled ${this.name} with cron: "${activeCron}".`);
   }
 
+  /** Resolves the active cron expression, falling back when configured input is invalid. */
   private resolveCronExpression(): string {
     if (cron.validate(this.cronExpression)) {
       return this.cronExpression;
@@ -53,6 +54,10 @@ export class Scheduler {
     return this.defaultCronExpression;
   }
 
+  /**
+   * Executes a task run for the given trigger while preventing overlaps.
+   * @param trigger - Indicates startup or cron invocation source.
+   */
   private async run(trigger: ScheduledTrigger): Promise<void> {
     if (this.isRunning) {
       console.log(`Skipping ${this.name} ${trigger} run — previous run still in progress.`);

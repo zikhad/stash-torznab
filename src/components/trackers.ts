@@ -25,6 +25,7 @@ export type TrackerConfig = {
     downloadUrlTemplate: string;
 };
 
+/** Normalizes tracker hostnames so `www.` aliases compare as the same host. */
 function normalizeHostname(hostname: string): string {
     return hostname.replace(/^www\./, "");
 }
@@ -124,6 +125,10 @@ export class Trackers {
     }
 
 
+    /**
+     * Returns valid torrent URLs ordered by active tracker priority.
+     * @param urls - Scene URLs to evaluate.
+     */
     public filterTorrentURLs(urls: SceneUrl[]): string[] {
         const orderedURLs: string[] = [];
 
@@ -184,6 +189,12 @@ export class Trackers {
         return url.includes(tracker.host) && url.includes(tracker.path);
     }
 
+    /**
+     * Builds a direct tracker download URL from the configured template.
+     * @param tracker - Tracker configuration.
+     * @param id - Torrent identifier.
+     * @param passkey - Tracker passkey.
+     */
     private buildDownloadURL(tracker: TrackerConfig, id: string, passkey: string): string {
         return tracker.downloadUrlTemplate
             .replaceAll("{id}", encodeURIComponent(id))
@@ -191,6 +202,10 @@ export class Trackers {
     }
 
 
+    /**
+     * Resolves and caches torrent feed metadata for a scene.
+     * @param scene - Scene to process.
+     */
     public async getTorrentFromScene(scene: Scene) {
         const torrentURLs = this.filterTorrentURLs(scene.urls);
         if (torrentURLs.length === 0) {

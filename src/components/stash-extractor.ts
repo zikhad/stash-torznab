@@ -92,12 +92,18 @@ export class StashExtractor {
         });
     }
 
+    /** Retrieves the Stash API key from environment variables. */
     private getApiKey(): string {
         const key = process.env.STASH_API_KEY;
         if (!key) throw new Error("Missing STASH_API_KEY in .env");
         return key;
     }
 
+    /**
+     * Executes a GraphQL request against Stash.
+     * @param query - GraphQL query string.
+     * @param variables - Query variables payload.
+     */
     private async graphql<T>(query: string, variables: QueryVariables): Promise<T> {
         const res = await fetch(`${process.env.STASH_BASE_URL}/graphql`, {
             method: "POST",

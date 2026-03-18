@@ -85,6 +85,10 @@ export class TorrentDecoder {
         return value;
     }
 
+    /**
+     * Returns `true` when a decoded value matches the bencoding dictionary interface.
+     * @param value - Decoded value candidate.
+     */
     private isBDictLike(value: unknown): value is BDictLike {
         return (
             typeof value === "object" &&
