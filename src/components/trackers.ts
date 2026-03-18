@@ -1,6 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { Cache } from "@components/cache";
+
+import { TorrentDecoder } from "@components/torrent-decoder";
+import { normalizeDate } from "./utils";
+
+const torrentDecoder = new TorrentDecoder();
+
 /** Configuration for a single torrent tracker. */
 export type TrackerConfig = {
     /** Unique identifier used in proxy routes (e.g. "tracker"). */
@@ -22,6 +29,21 @@ function normalizeHostname(hostname: string): string {
     return hostname.replace(/^www\./, "");
 }
 
+type Torrent = {
+    title: string;
+    guid: string;
+    link: string;
+    downloadLink: string;
+    pubDate: string;
+    size: number;
+    category: string;
+    seeders: number;
+    peers: number;
+    studio: string;
+    performers: string;
+    tags: string[];
+};
+
 /**
  * Manages tracker configurations and provides methods for filtering scenes,
  * selecting torrent URLs, and resolving download targets.
@@ -32,6 +54,8 @@ function normalizeHostname(hostname: string): string {
 export class Trackers {
     private readonly trackers: TrackerConfig[];
     private readonly trackersByName: Map<string, TrackerConfig>;
+
+    private readonly cache = new Cache<Torrent>();
 
     /**
      * @param trackers - Ordered list of tracker configurations (highest priority first).
@@ -84,6 +108,7 @@ export class Trackers {
         );
     }
 
+
     /**
      * Returns the highest-priority valid torrent URL from a scene's URL list.
      * Priority is determined by the order of active trackers.
@@ -98,20 +123,36 @@ export class Trackers {
         }
     }
 
+
+    public filterTorrentURLs(urls: SceneUrl[]): string[] {
+        const orderedURLs: string[] = [];
+
+        for (const tracker of this.activeTrackers) {
+            for (const { url } of urls) {
+                if (this.isValidTorrentURL(url, tracker)) {
+                    orderedURLs.push(url);
+                }
+            }
+        }
+
+        return orderedURLs;
+
+    }
+
     /**
      * Converts a scene's tracker URL into a local proxy download URL
      * of the form `/download/:tracker/:id`.
      * @param sourceURL - A valid tracker detail page URL from the scene.
-     * @returns The proxy URL, or `undefined` if the tracker is unrecognised or has no `id` param.
+     * @returns The proxy URL, or `empty` if the tracker is unrecognised or has no `id` param.
      */
-    public createProxyDownloadURL(sourceURL: string): string | undefined {
+    public createProxyDownloadURL(sourceURL: string) {
         const parsedURL = new URL(sourceURL);
         const id = parsedURL.searchParams.get("id");
-        if (!id) return;
+        if (!id) return "";
 
         const sourceHost = normalizeHostname(parsedURL.hostname);
         const tracker = this.trackers.find((t) => normalizeHostname(t.host) === sourceHost);
-        if (!tracker) return;
+        if (!tracker) return "";
 
         return `${process.env.PROTOCOL}://${process.env.HOST}:${process.env.PORT}/download/${tracker.name}/${id}`;
     }
@@ -147,5 +188,54 @@ export class Trackers {
         return tracker.downloadUrlTemplate
             .replaceAll("{id}", encodeURIComponent(id))
             .replaceAll("{passkey}", encodeURIComponent(passkey));
+    }
+
+
+    public async getTorrentFromScene(scene: Scene) {
+        const torrentURLs = this.filterTorrentURLs(scene.urls);
+        if (torrentURLs.length === 0) {
+            return null;
+        }
+
+        const [url] = torrentURLs;
+        const link = this.createProxyDownloadURL(url);
+
+        return this.cache.getOrSet(scene.id, async () => {
+            console.log(`Cache miss for scene "${scene.title}" (${scene.id}), fetching torrent size...`);
+            return {
+                title: scene.title,
+                guid: scene.id,
+                link: `${process.env.STASH_BASE_URL}/scenes/${scene.id}`,
+                downloadLink: link,
+                pubDate: normalizeDate(scene.release_date),
+                size: await this.extractTorrentSize(link),
+                category: "6000",
+                seeders: 0,
+                peers: 0,
+                studio: scene.studio.name,
+                performers: scene.performers.map(p => p.performer.name).join(", "),
+                tags: scene.tags.map(t => t.name),
+            };
+        });
+    }
+
+    /**
+     * Downloads a torrent via the proxy and returns its total payload size in bytes.
+     * @param url - The proxied URL for a torrent.
+     * @returns Total size of the torrent payload in bytes.
+     * @returns `0` If the URL is unrecognised, the download fails, or the metadata is malformed.
+     */
+    public async extractTorrentSize(url: string): Promise<number> {
+        const response = await fetch(url);
+        if (!response.ok) {
+            // throw new Error(`Failed to fetch torrent for size caching: ${response.status} ${response.statusText}`);
+            console.error(`Failed to fetch torrent for size caching: ${response.status} ${response.statusText}`);
+            return 0;
+        }
+
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const torrent = torrentDecoder.decode(buffer);
+        const size = torrentDecoder.extractSize(torrent);
+        return size;
     }
 }

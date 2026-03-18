@@ -18,10 +18,10 @@ export class Cache<T extends {}> {
 
   /**
    * Creates a cache instance.
-   * @param options - Cache limits and TTL. Defaults to 100 entries and `CACHE_TTL_MS`.
+   * @param options - Cache limits and TTL. Defaults to 1,000,000 entries and `CACHE_TTL_MS`.
    */
   constructor(options: CacheOptions = {
-    max: 100,
+    max: 1000000,
     ttl: +(process.env.CACHE_TTL_MS ?? 5 * 60 * 1000), // 5 minutes
   }) {
     this.store = new LRUCache<string, T>(options);

@@ -29,7 +29,7 @@ function sendCaps(res: Response) {
   res.type("application/xml").send(xml);
 }
 
-function sendResults(res: Response, scenes: Scene[]) {
+async function sendResults(res: Response, scenes: Scene[]) {
   const root = create({ version: "1.0" })
     .ele("rss", {
       version: "2.0",
@@ -41,37 +41,37 @@ function sendResults(res: Response, scenes: Scene[]) {
     .ele("link").txt(`${process.env.PROTOCOL}://${process.env.HOST}:${process.env.PORT}`).up();
 
   for (const scene of scenes) {
-    const url = trackers.findBestTorrentURL(scene.urls);
-    if (!url) continue;
+    const torrent = await trackers.getTorrentFromScene(scene);
+    if (!torrent) continue;
 
     const item = root.ele("item");
 
-    item.ele("title").txt(scene.title);
-    item.ele("guid").txt(scene.id);
-    item.ele("link").txt(`${process.env.STASH_BASE_URL}/scenes/${scene.id}`);
+    item.ele("title").txt(torrent.title);
+    item.ele("guid").txt(torrent.guid);
+    item.ele("link").txt(torrent.link);
 
-    item.ele("pubDate").txt(normalizeDate(scene.release_date));
+    item.ele("pubDate").txt(torrent.pubDate);
 
     item.ele("enclosure", {
-      url: trackers.createProxyDownloadURL(url),
-      length: 0,
+      url: torrent.downloadLink,
+      length: `${torrent.size}`,
       type: "application/x-bittorrent"
     });
 
     [
-      { name: "category", value: "6000" },
-      { name: "seeders", value: "1" },
-      { name: "peers", value: "1" },
-      { name: "size", value: "0" },
-      { name: "studio", value: scene.studio.name },
-      { name: "performers", value: scene.performers.map(p => p.performer.name).join(", ") },
+      { name: "category", value: torrent.category },
+      { name: "seeders", value: `${torrent.seeders}` },
+      { name: "peers", value: `${torrent.peers}` },
+      { name: "size", value: `${torrent.size}` },
+      { name: "studio", value: torrent.studio },
+      { name: "performers", value: torrent.performers },
   ].forEach(attr => {
     item.ele("torznab:attr", attr);
   });
-    for (const tag of scene.tags) {
+    for (const tag of torrent.tags) {
       item.ele("torznab:attr", {
         name: "tag",
-        value: tag.name
+        value: tag
       });
     }
 
@@ -99,7 +99,7 @@ app.get("/api", async (req, res) => {
   if (type === "search") {
     const scenes = await stashExtractor.fetchScenes({ title: (req.query.q as string) ?? "" });
     const filtered = trackers.filterScenesByTrackers(scenes);
-    return sendResults(res, filtered);
+    return await sendResults(res, filtered);
   }
 
   res.status(400).send("unsupported");
