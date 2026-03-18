@@ -89,6 +89,20 @@ const trackers = Trackers.fromConfigFile();
 
 const stashExtractor = new StashExtractor();
 
+async function cacheTorrents() {
+  const scenes = await stashExtractor.fetchScenes();
+  const filtered = trackers.filterScenesByTrackers(scenes);
+  console.log(`Caching torrents for ${filtered.length} scenes...`);
+  for (const scene of filtered) {
+    const torrent = await trackers.getTorrentFromScene(scene);
+    console.log(`Cached torrent for scene "${scene.title}" (${scene.id}): ${torrent ? "found" : "not found"}`);
+  }
+}
+
+cacheTorrents()
+  .then(() => console.log("Initial torrent caching complete"))
+  .catch(err => console.error("Error during initial torrent caching:", err));
+
 app.get("/api", async (req, res) => {
   const type = req.query.t;
 
