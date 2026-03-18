@@ -25,7 +25,7 @@ type QueryVariables = {
  * Client for querying the Stash GraphQL API with cached scene lookups.
  */
 export class StashExtractor {
-    private readonly cache = new Cache<Scene[]>();
+    private readonly cache = new Cache<Scene[]>({ namespace: "stash-scenes" });
 
     private readonly countQuery = `
         query getCount($input: SceneQueryInput!) {
@@ -90,6 +90,16 @@ export class StashExtractor {
 
             return scenes;
         });
+    }
+
+    /** Returns cache stats for Stash scene query cache. */
+    public getCacheStats() {
+        return this.cache.getStats();
+    }
+
+    /** Prunes expired entries from persistent cache storage. */
+    public pruneCache(): number {
+        return this.cache.pruneExpired();
     }
 
     /** Retrieves the Stash API key from environment variables. */

@@ -2,6 +2,7 @@ import express, { Response } from "express";
 import { create } from "xmlbuilder2";
 import { config } from "dotenv";
 
+import { Cache } from "@components/cache";
 import { Scheduler } from "@components/scheduler";
 import { StashExtractor } from "@components/stash-extractor";
 import { normalizeDate } from "@components/utils";
@@ -100,30 +101,62 @@ const stashExtractor = new StashExtractor();
  * Preloads torrent metadata cache for all currently filterable scenes.
  */
 async function cacheTorrents() {
-  const scenes = await stashExtractor.fetchScenes();
-  const filtered = trackers.filterScenesByTrackers(scenes);
-  console.log(`Caching torrents for ${filtered.length} scenes...`);
-  for (const [index, scene] of filtered.entries()) {
-    const torrent = await trackers.getTorrentFromScene(scene);
-    if (!torrent) {
-      console.warn(`No torrent found for scene "${scene.title}" (${scene.id})`);
-      continue;
+  let removedStash = 0;
+  let removedTracker = 0;
+
+  try {
+    const scenes = await stashExtractor.fetchScenes();
+    const filtered = trackers.filterScenesByTrackers(scenes);
+    console.log(`Caching torrents for ${filtered.length} scenes...`);
+    for (const [index, scene] of filtered.entries()) {
+      const torrent = await trackers.getTorrentFromScene(scene);
+      if (!torrent) {
+        console.warn(`No torrent found for scene "${scene.title}" (${scene.id})`);
+        continue;
+      }
+      const progress = ((index + 1) / filtered.length) * 100;
+      console.log(`[${(index + 1)}/${filtered.length} (${progress.toFixed(0)}%)]: Cached torrrent - "${torrent.title}" (${torrent.guid})`);
     }
-    const progress = ((index + 1) / filtered.length) * 100;
-    console.log(`[${(index + 1)}/${filtered.length} (${progress.toFixed(0)}%)]: Cached torrrent - "${torrent.title}" (${torrent.guid})`);
+  } finally {
+    // Keep SQLite cache growth bounded by removing expired rows after each refresh cycle.
+    removedStash = stashExtractor.pruneCache();
+    removedTracker = trackers.pruneCache();
+    console.log(
+      `Cache prune complete: removed ${removedStash + removedTracker} expired entries (stash=${removedStash}, tracker=${removedTracker}).`
+    );
   }
 }
 
-const DEFAULT_CACHE_CRON = "0 */6 * * *";
-const cacheCronExpression = process.env.CACHE_CRON ?? DEFAULT_CACHE_CRON;
+/**
+ * Runs SQLite checkpoint + VACUUM maintenance for cache databases.
+ */
+async function maintainCacheDatabase() {
+  const databases = Cache.runDatabaseMaintenance();
+  if (databases.length === 0) {
+    console.log("Cache database maintenance skipped: no opened cache database.");
+    return;
+  }
 
-const torrentCacheScheduler = new Scheduler(
-  "torrent cache refresh",
-  cacheCronExpression,
-  DEFAULT_CACHE_CRON,
-  cacheTorrents
-);
+  for (const database of databases) {
+    console.log(
+      `Cache DB maintenance complete (${database.databasePath}): checkpoint busy=${database.checkpointBusy}, log=${database.checkpointLogFrames}, checkpointed=${database.checkpointCheckpointedFrames}, page_count=${database.pageCount}, freelist_count=${database.freelistCount}.`
+    );
+  }
+}
+
+const torrentCacheScheduler = new Scheduler({
+  name: "torrent cache refresh",
+  cronExpression: process.env.CACHE_CRON as string,
+  task: cacheTorrents
+});
 torrentCacheScheduler.start();
+
+const cacheMaintenanceScheduler = new Scheduler({
+  name: "cache database maintenance",
+  cronExpression: process.env.CACHE_MAINTENANCE_CRON ?? "0 3 * * *", // default to daily at 03:00
+  task: maintainCacheDatabase
+});
+cacheMaintenanceScheduler.start();
 
 app.get("/api", async (req, res) => {
   const type = req.query.t;
@@ -202,6 +235,35 @@ app.get("/list", async (req, res) => {
       monitored: true
     }))
   );
+});
+
+/** Returns cache statistics for all internal cache namespaces. */
+app.get("/maintenance/cache/stats", (req, res) => {
+  return res.json({
+    stashScenes: stashExtractor.getCacheStats(),
+    trackerTorrents: trackers.getCacheStats(),
+  });
+});
+
+/** Prunes expired cache entries and returns updated cache stats. */
+app.post("/maintenance/cache/prune", (req, res) => {
+  const removedStash = stashExtractor.pruneCache();
+  const removedTracker = trackers.pruneCache();
+  const removed = removedStash + removedTracker;
+
+  return res.json({
+    removed,
+    stashScenes: stashExtractor.getCacheStats(),
+    trackerTorrents: trackers.getCacheStats(),
+  });
+});
+
+/** Runs SQLite cache database checkpoint + VACUUM maintenance. */
+app.post("/maintenance/cache/optimize", (req, res) => {
+  const databases = Cache.runDatabaseMaintenance();
+  return res.json({
+    databases,
+  });
 });
 
 app.listen(3000, () => console.log("Server started on port 3000"));

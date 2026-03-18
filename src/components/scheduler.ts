@@ -8,50 +8,40 @@ type ScheduledTrigger = "startup" | "cron";
 export class Scheduler {
   private readonly name: string;
   private readonly cronExpression: string;
-  private readonly defaultCronExpression: string;
   private readonly task: () => Promise<void>;
   private isRunning = false;
 
   /**
    * @param name - Human-friendly job name used in logs.
    * @param cronExpression - Cron expression from configuration.
-   * @param defaultCronExpression - Fallback cron expression when input is invalid.
    * @param task - Async job function to execute.
    */
-  constructor(
+  constructor({
+    name,
+    cronExpression = "0 */6 * * *", // every 6 hours
+    task,
+  }: {
     name: string,
     cronExpression: string,
-    defaultCronExpression: string,
     task: () => Promise<void>
-  ) {
+  }) {
     this.name = name;
-    this.cronExpression = cronExpression;
-    this.defaultCronExpression = defaultCronExpression;
     this.task = task;
+    if (!cron.validate(cronExpression)) {
+      throw new Error(`Invalid cron expression for ${name}: "${cronExpression}".`);
+    }
+    this.cronExpression = cronExpression;
+
   }
 
   /** Starts the scheduled job and immediately executes one startup run. */
   public start(): void {
     void this.run("startup");
-
-    const activeCron = this.resolveCronExpression();
-    cron.schedule(activeCron, () => {
+    cron.schedule(this.cronExpression, () => {
       void this.run("cron");
     });
 
-    console.log(`Scheduled ${this.name} with cron: "${activeCron}".`);
-  }
-
-  /** Resolves the active cron expression, falling back when configured input is invalid. */
-  private resolveCronExpression(): string {
-    if (cron.validate(this.cronExpression)) {
-      return this.cronExpression;
-    }
-
-    console.warn(
-      `Invalid cron expression for ${this.name}: "${this.cronExpression}", falling back to "${this.defaultCronExpression}".`
-    );
-    return this.defaultCronExpression;
+    console.log(`Scheduled ${this.name} with cron: "${this.cronExpression}".`);
   }
 
   /**
