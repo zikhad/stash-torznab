@@ -10,6 +10,7 @@ type CacheOptions = {
   database?: Database;
 };
 
+/** Statistics for a single cache namespace. */
 export type CacheStats = {
   namespace: string;
   totalEntries: number;
@@ -23,9 +24,13 @@ export type CacheStats = {
  * while delegating persistence to a pluggable backend.
  */
 export class Cache<T extends {}> {
+  /** Namespace used to isolate cache keys between independent usages. */
   private readonly namespace: string;
+  /** Time to live in milliseconds for each cache entry. */
   private readonly ttl: number;
+  /** Persistence backend for cache entries. */
   private readonly database: Database;
+  /** Tracks in-progress factory calls to deduplicate concurrent cache misses for the same key. */
   private readonly inFlight = new Map<string, Promise<T>>();
 
   /**
