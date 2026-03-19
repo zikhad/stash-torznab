@@ -1,12 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import Database from "better-sqlite3";
+import SQLite from "better-sqlite3";
 
-export type CacheRow = {
-  value: string;
-  expiresAt: number;
-};
+import { Database } from "@components/database/database";
+
 
 export type CacheMaintenanceResult = {
   databasePath: string;
@@ -18,37 +16,27 @@ export type CacheMaintenanceResult = {
 };
 
 /**
- * Interface for cache persistence backends used by the Cache wrapper.
- */
-export interface CacheDatabaseBackend {
-  get(namespace: string, key: string): CacheRow | undefined;
-  upsert(namespace: string, key: string, value: string, expiresAt: number): void;
-  delete(namespace: string, key: string): number;
-  clearNamespace(namespace: string): number;
-  clearExpired(now: number): number;
-  count(namespace: string): number;
-  countExpired(namespace: string, now: number): number;
-}
-
-/**
  * SQLite-backed implementation of the cache persistence interface.
  */
-export class SqliteCacheDatabase implements CacheDatabaseBackend {
-  private static dbByPath = new Map<string, Database.Database>();
+export class SqliteCacheDatabase extends Database {
+  private static dbByPath = new Map<string, SQLite.Database>();
   private static backendByPath = new Map<string, SqliteCacheDatabase>();
 
-  private readonly db: Database.Database;
+  private readonly db: SQLite.Database;
 
-  private readonly selectStmt: Database.Statement<[string, string], { value: string; expires_at: number }>;
-  private readonly upsertStmt: Database.Statement<[string, string, string, number]>;
-  private readonly deleteStmt: Database.Statement<[string, string]>;
-  private readonly clearStmt: Database.Statement<[string]>;
-  private readonly clearExpiredStmt: Database.Statement<[number]>;
-  private readonly countStmt: Database.Statement<[string], { total: number }>;
-  private readonly expiredCountStmt: Database.Statement<[string, number], { total: number }>;
+  private readonly selectStmt: SQLite.Statement<[string, string], { value: string; expires_at: number }>;
+  private readonly upsertStmt: SQLite.Statement<[string, string, string, number]>;
+  private readonly deleteStmt: SQLite.Statement<[string, string]>;
+  private readonly clearStmt: SQLite.Statement<[string]>;
+  private readonly clearExpiredStmt: SQLite.Statement<[number]>;
+  private readonly countStmt: SQLite.Statement<[string], { total: number }>;
+  private readonly expiredCountStmt: SQLite.Statement<[string, number], { total: number }>;
 
-  public static getOrCreate(dbPath: string): SqliteCacheDatabase {
+  public static getOrCreate(filepath?: string): SqliteCacheDatabase {
     
+    const dbPath = filepath
+            ?? process.env.CACHE_SQLITE_PATH
+            ?? path.resolve(process.cwd(), "data", "cache.sqlite");
     
     const existing = this.backendByPath.get(dbPath);
     if (existing) {
@@ -57,7 +45,7 @@ export class SqliteCacheDatabase implements CacheDatabaseBackend {
 
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-    const db = this.dbByPath.get(dbPath) ?? new Database(dbPath);
+    const db = this.dbByPath.get(dbPath) ?? new SQLite(dbPath);
     db.pragma("journal_mode = WAL");
     db.exec(`
       CREATE TABLE IF NOT EXISTS cache_entries (
@@ -108,7 +96,8 @@ export class SqliteCacheDatabase implements CacheDatabaseBackend {
     return results;
   }
 
-  private constructor(db: Database.Database) {
+  private constructor(db: SQLite.Database) {
+    super();
     this.db = db;
 
     this.selectStmt = this.db.prepare(
@@ -160,7 +149,7 @@ export class SqliteCacheDatabase implements CacheDatabaseBackend {
     );
   }
 
-  public get(namespace: string, key: string): CacheRow | undefined {
+  public get(namespace: string, key: string) {
     const row = this.selectStmt.get(namespace, key);
     if (!row) {
       return undefined;

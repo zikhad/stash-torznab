@@ -2,7 +2,7 @@ import express, { Response } from "express";
 import { create } from "xmlbuilder2";
 import { config } from "dotenv";
 
-import { SqliteCacheDatabase } from "@components/cache-database";
+import { SqliteCacheDatabase } from "@components/database";
 import { Scheduler } from "@components/scheduler";
 import { StashExtractor } from "@components/stash-extractor";
 import { normalizeDate } from "@components/utils";

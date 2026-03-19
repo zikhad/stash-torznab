@@ -1,20 +1,13 @@
-import path from "node:path";
-
-import {
-  CacheDatabaseBackend,
-  SqliteCacheDatabase,
-} from "./cache-database";
+import { Database, SqliteCacheDatabase } from "@components/database";
 
 /** Options used to configure cache behavior and persistence backend. */
 type CacheOptions = {
   /** Namespace used to isolate keys between independent cache usages. */
   namespace: string;
   /** Time to live for each cache entry, in milliseconds. */
-  ttl: number;
-  /** SQLite file path used to persist cache entries. */
-  dbPath: string;
+  ttl?: number;
   /** Optional cache persistence backend implementation. */
-  database: CacheDatabaseBackend;
+  database?: Database;
 };
 
 export type CacheStats = {
@@ -32,25 +25,21 @@ export type CacheStats = {
 export class Cache<T extends {}> {
   private readonly namespace: string;
   private readonly ttl: number;
-  private readonly database: CacheDatabaseBackend;
+  private readonly database: Database;
   private readonly inFlight = new Map<string, Promise<T>>();
 
   /**
    * Creates a cache instance.
    * @param options - Cache options including namespace, TTL, and database path.
    */
-  constructor(options: Partial<CacheOptions> = {}) {
-    this.namespace = options.namespace ?? "default";
-    this.ttl = options.ttl ?? +(process.env.CACHE_TTL_MS ?? 5 * 60 * 1000); // 5 minutes
-
-    if (options.database) {
-      this.database = options.database;
-    } else {
-      const dbPath = options.dbPath
-        ?? process.env.CACHE_SQLITE_PATH
-        ?? path.resolve(process.cwd(), "data", "cache.sqlite");
-      this.database = SqliteCacheDatabase.getOrCreate(dbPath);
-    }
+  constructor({
+    namespace = "default",
+    ttl = +(process.env.CACHE_TTL_MS ?? 5 * 60 * 1000), // default to 5 minutes
+    database = SqliteCacheDatabase.getOrCreate()
+  }: CacheOptions) {
+    this.namespace = namespace;
+    this.ttl = ttl;
+    this.database = database;
 
     this.database.clearExpired(Date.now());
   }
