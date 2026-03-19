@@ -184,9 +184,16 @@ export class Trackers {
 
     /**
      * Returns `true` if the URL belongs to the tracker's host and points to a valid torrent path.
+     * @param url - The URL to evaluate.
+     * @param tracker - The tracker configuration to validate against.
+     * @returns `true` if the URL is a valid torrent URL for the tracker, otherwise `false`.
      */
     private isValidTorrentURL(url: string, tracker: TrackerConfig): boolean {
-        return url.includes(tracker.host) && url.includes(tracker.path);
+        const { hostname, pathname, searchParams } = new URL(url);
+        if (!searchParams.has("id")) return false;
+        if (normalizeHostname(hostname) !== normalizeHostname(tracker.host)) return false;
+        if (!pathname.includes(tracker.path)) return false;
+        return true;
     }
 
     /**
@@ -201,6 +208,24 @@ export class Trackers {
             .replaceAll("{passkey}", encodeURIComponent(passkey));
     }
 
+    /**
+     * Returns the smallest torrent from a list of URLs.
+     * @param urls - List of torrent URLs.
+     * @returns The smallest torrent object containing `url` and `size`.
+     */
+    private async getSmallestTorrent(urls: string[]) {
+        const sizes = await Promise.all(urls.map(async (url) => {
+            const proxiedURL = this.createProxyDownloadURL(url);
+            return {
+                url: proxiedURL,
+                size: await this.extractTorrentSize(proxiedURL),
+            }
+        }));
+        
+        return sizes.reduce((smallest, current) => {
+            return current.size < smallest.size ? current : smallest;
+        }, sizes[0]);
+    }
 
     /**
      * Resolves and caches torrent feed metadata for a scene.
@@ -212,23 +237,23 @@ export class Trackers {
             return null;
         }
 
-        const [url] = torrentURLs;
-        const link = this.createProxyDownloadURL(url);
-
-        return this.cache.getOrSet(scene.id, async () => ({
-            title: scene.title,
-            guid: scene.id,
-            link: `${process.env.STASH_BASE_URL}/scenes/${scene.id}`,
-            downloadLink: link,
-            pubDate: normalizeDate(scene.release_date),
-            size: await this.extractTorrentSize(link),
-            category: "6000",
-            seeders: 0,
-            peers: 0,
-            studio: scene.studio.name,
-            performers: scene.performers.map(p => p.performer.name).join(", "),
-            tags: scene.tags.map(t => t.name),
-        }));
+        return this.cache.getOrSet(scene.id, async () => {
+            const smallestTorrent = await this.getSmallestTorrent(torrentURLs);
+            return {
+                title: scene.title,
+                guid: scene.id,
+                link: `${process.env.STASH_BASE_URL}/scenes/${scene.id}`,
+                downloadLink: smallestTorrent.url,
+                pubDate: normalizeDate(scene.release_date),
+                size: smallestTorrent.size,
+                category: "6000",
+                seeders: 0,
+                peers: 0,
+                studio: scene.studio.name,
+                performers: scene.performers.map(p => p.performer.name).join(", "),
+                tags: scene.tags.map(t => t.name),
+            }
+        });
     }
 
     /** Returns cache stats for tracker-derived torrent metadata cache. */
