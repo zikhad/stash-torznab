@@ -283,4 +283,5 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   return res.status(500).send("Internal server error");
 });
 
-app.listen(3000, () => console.log("Server started on port 3000"));
+const port = +(process.env.PORT ?? 3000);
+app.listen(port, () => console.log(`Server started on port ${port}`));
