@@ -70,14 +70,12 @@ async function main() {
     cronExpression: process.env.CACHE_CRON as string,
     task: cacheTorrents
   });
-  torrentCacheScheduler.start();
 
   const cacheMaintenanceScheduler = new Scheduler({
     name: "cache database maintenance",
     cronExpression: process.env.CACHE_MAINTENANCE_CRON ?? "0 3 * * *", // default to daily at 03:00
     task: maintainCacheDatabase
   });
-  cacheMaintenanceScheduler.start();
 
   app.get("/api", async (req, res, next) => {
     try {
@@ -199,7 +197,11 @@ async function main() {
   });
 
   const port = +(process.env.PORT ?? 3000);
-  const server = app.listen(port, () => console.log(`Server started on port ${port}`));
+  const server = app.listen(port, () => {
+    console.log(`Server started on port ${port}`);
+    torrentCacheScheduler.start();
+    cacheMaintenanceScheduler.start();
+  });
 
   const shutdown = () => {
     console.log("Shutting down...");
