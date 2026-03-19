@@ -2,7 +2,7 @@ import express, { Response } from "express";
 import { create } from "xmlbuilder2";
 import { config } from "dotenv";
 
-import { Cache } from "@components/cache";
+import { SqliteCacheDatabase } from "@components/cache-database";
 import { Scheduler } from "@components/scheduler";
 import { StashExtractor } from "@components/stash-extractor";
 import { normalizeDate } from "@components/utils";
@@ -131,7 +131,7 @@ async function cacheTorrents() {
  * Runs SQLite checkpoint + VACUUM maintenance for cache databases.
  */
 async function maintainCacheDatabase() {
-  const databases = Cache.runDatabaseMaintenance();
+  const databases = SqliteCacheDatabase.runMaintenanceAll();
   if (databases.length === 0) {
     console.log("Cache database maintenance skipped: no opened cache database.");
     return;
@@ -260,7 +260,7 @@ app.post("/maintenance/cache/prune", (req, res) => {
 
 /** Runs SQLite cache database checkpoint + VACUUM maintenance. */
 app.post("/maintenance/cache/optimize", (req, res) => {
-  const databases = Cache.runDatabaseMaintenance();
+  const databases = SqliteCacheDatabase.runMaintenanceAll();
   return res.json({
     databases,
   });
