@@ -1,5 +1,4 @@
 import express, { NextFunction, Request, Response } from "express";
-import { create } from "xmlbuilder2";
 import { config } from "dotenv";
 
 import { SqliteCacheDatabase } from "@components/database";
@@ -7,88 +6,7 @@ import { Scheduler } from "@components/scheduler";
 import { StashExtractor } from "@components/stash-extractor";
 import { normalizeDate } from "@components/utils";
 import { Trackers } from "@components/trackers";
-
-/** Sends Torznab capabilities metadata response. */
-function sendCaps(res: Response) {
-  const xml = create({ version: "1.0" })
-    .ele("caps")
-    .ele("server", {
-      version: "1.0",
-      title: "Custom Torznab Indexer",
-    })
-    .up()
-    .ele("limits", { max: 100, default: 50 })
-    .up()
-    .ele("searching")
-    .ele("search", { available: "yes" })
-    .up()
-    .up()
-    .ele("categories")
-    .ele("category", { id: 2000, name: "Movies" })
-    .up()
-    .up()
-    .end({ prettyPrint: true });
-
-  res.type("application/xml").send(xml);
-}
-
-/**
- * Renders and sends a Torznab RSS response for the provided scenes.
- * @param res - Express response object.
- * @param scenes - Scenes to include in the feed.
- * @param trackers - Trackers instance used to resolve torrent metadata.
- */
-async function sendResults(res: Response, scenes: Scene[], trackers: Trackers) {
-  const root = create({ version: "1.0" })
-    .ele("rss", {
-      version: "2.0",
-      "xmlns:torznab": "http://torznab.com/schemas/2015/feed"
-    })
-    .ele("channel")
-    .ele("title").txt("Custom Torznab Indexer").up()
-    .ele("description").txt("Torznab scenes mapped to torrents").up()
-    .ele("link").txt(`${process.env.PROTOCOL}://${process.env.HOST}:${process.env.PORT}`).up();
-
-  for (const scene of scenes) {
-    const torrent = await trackers.getTorrentFromScene(scene);
-    if (!torrent) continue;
-
-    const item = root.ele("item");
-
-    item.ele("title").txt(torrent.title);
-    item.ele("guid").txt(torrent.guid);
-    item.ele("link").txt(torrent.link);
-
-    item.ele("pubDate").txt(torrent.pubDate);
-
-    item.ele("enclosure", {
-      url: torrent.downloadLink,
-      length: `${torrent.size}`,
-      type: "application/x-bittorrent"
-    });
-
-    [
-      { name: "category", value: torrent.category },
-      { name: "seeders", value: `${torrent.seeders}` },
-      { name: "peers", value: `${torrent.peers}` },
-      { name: "size", value: `${torrent.size}` },
-      { name: "studio", value: torrent.studio },
-      { name: "performers", value: torrent.performers },
-  ].forEach(attr => {
-    item.ele("torznab:attr", attr);
-  });
-    for (const tag of torrent.tags) {
-      item.ele("torznab:attr", {
-        name: "tag",
-        value: tag
-      });
-    }
-
-  }
-
-  return res.type("application/xml").send(root.end({ prettyPrint: true }));
-}
-
+import { Torznab } from "@components/torznab";
 
 async function main() {
   config(); // Load environment variables from .env file
@@ -96,6 +14,7 @@ async function main() {
   const app = express();
 
   const trackers = Trackers.fromConfigFile();
+  const torznab = new Torznab(trackers);
 
   const stashExtractor = new StashExtractor();
 
@@ -165,18 +84,20 @@ async function main() {
       const type = req.query.t;
 
       if (type === "caps") {
-        return sendCaps(res);
+        const xml = torznab.createCaps();
+        return res.type("application/xml").send(xml);
       }
 
       if (type === "search") {
         const scenes = await stashExtractor.fetchScenes({ title: (req.query.q as string) ?? "" });
         const filtered = trackers.filterScenesByTrackers(scenes);
-        return await sendResults(res, filtered, trackers);
+        const xml = await torznab.createXML(filtered);
+        return res.type("application/xml").send(xml);
       }
 
-      res.status(400).send("unsupported");
+      return res.status(400).send("unsupported");
     } catch (err) {
-      next(err);
+      return next(err);
     }
   });
 
@@ -219,7 +140,7 @@ async function main() {
     try {
       const scenes = await stashExtractor.fetchScenes();
 
-      res.json(
+      return res.json(
         scenes.map((scene, index) => ({
           tvdbId: 9000000 + index,
           title: scene.title,
@@ -241,7 +162,7 @@ async function main() {
         }))
       );
     } catch (err) {
-      next(err);
+      return next(err);
     }
   });
 
