@@ -163,6 +163,23 @@ export class Trackers {
     }
 
     /**
+     * Creates a direct tracker download URL from a scene's tracker URL by resolving
+     * @param sourceURL - A valid tracker detail page URL from the scene.
+     * @returns The direct download URL, or `empty` if the tracker is unrecognised, has no `id` param, or has no configured passkey.
+     */
+    public createDirectDownloadURL(sourceURL: string) {
+        const parsedURL = new URL(sourceURL);
+        const id = parsedURL.searchParams.get("id");
+        if (!id) return "";
+
+        const sourceHost = normalizeHostname(parsedURL.hostname);
+        const tracker = this.trackers.find((t) => normalizeHostname(t.host) === sourceHost);
+        if (!tracker) return "";
+
+        return this.buildDownloadURL(tracker, id, tracker.passkey);
+    }
+
+    /**
      * Resolves the direct tracker download URL for a given tracker name and torrent ID.
      * @param trackerName - The tracker's `name` value (e.g. "tracker").
      * @param id - The torrent ID extracted from the URL.
@@ -216,9 +233,10 @@ export class Trackers {
     private async getSmallestTorrent(urls: string[]) {
         const sizes = await Promise.all(urls.map(async (url) => {
             const proxiedURL = this.createProxyDownloadURL(url);
+            const internalURL = this.createDirectDownloadURL(url);
             return {
                 url: proxiedURL,
-                size: await this.extractTorrentSize(proxiedURL),
+                size: await this.extractTorrentSize(internalURL),
             }
         }));
         
