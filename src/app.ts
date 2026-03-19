@@ -1,4 +1,4 @@
-import express, { Response } from "express";
+import express, { NextFunction, Request, Response } from "express";
 import { create } from "xmlbuilder2";
 import { config } from "dotenv";
 
@@ -158,23 +158,27 @@ const cacheMaintenanceScheduler = new Scheduler({
 });
 cacheMaintenanceScheduler.start();
 
-app.get("/api", async (req, res) => {
-  const type = req.query.t;
+app.get("/api", async (req, res, next) => {
+  try {
+    const type = req.query.t;
 
-  if (type === "caps") {
-    return sendCaps(res);
+    if (type === "caps") {
+      return sendCaps(res);
+    }
+
+    if (type === "search") {
+      const scenes = await stashExtractor.fetchScenes({ title: (req.query.q as string) ?? "" });
+      const filtered = trackers.filterScenesByTrackers(scenes);
+      return await sendResults(res, filtered);
+    }
+
+    res.status(400).send("unsupported");
+  } catch (err) {
+    next(err);
   }
-
-  if (type === "search") {
-    const scenes = await stashExtractor.fetchScenes({ title: (req.query.q as string) ?? "" });
-    const filtered = trackers.filterScenesByTrackers(scenes);
-    return await sendResults(res, filtered);
-  }
-
-  res.status(400).send("unsupported");
 });
 
-app.get("/download/:tracker/:id", async (req, res) => {
+app.get("/download/:tracker/:id", async (req, res, next) => {
   const tracker = req.params.tracker;
   const id = req.params.id;
 
@@ -191,27 +195,32 @@ app.get("/download/:tracker/:id", async (req, res) => {
     return;
   }
 
-  const response = await fetch(torrentUrl);
+  try {
+    const response = await fetch(torrentUrl);
 
-  if (!response.ok) {
-    res.status(response.status).send("tracker download failed");
-    return;
+    if (!response.ok) {
+      res.status(response.status).send("tracker download failed");
+      return;
+    }
+
+    res.setHeader(
+      "Content-Type",
+      "application/x-bittorrent"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="torrent-${id}.torrent"`
+    );
+    res.setHeader("Cache-Control", "no-cache");
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return res.send(buffer);
+  } catch (err) {
+    next(err);
   }
-
-  res.setHeader(
-    "Content-Type",
-    "application/x-bittorrent"
-  );
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="torrent-${id}.torrent"`
-  );
-  res.setHeader("Cache-Control", "no-cache");
-  const buffer = Buffer.from(await response.arrayBuffer());
-  return res.send(buffer);
 });
 
-app.get("/list", async (req, res) => {
+app.get("/list", async (req, res, next) => {
+  try {
   const scenes = await stashExtractor.fetchScenes();
 
   res.json(
@@ -235,10 +244,13 @@ app.get("/list", async (req, res) => {
       monitored: true
     }))
   );
+  } catch (err) {
+    next(err);
+  }
 });
 
 /** Returns cache statistics for all internal cache namespaces. */
-app.get("/maintenance/cache/stats", (req, res) => {
+app.get("/maintenance/cache/stats", (_req, res) => {
   return res.json({
     stashScenes: stashExtractor.getCacheStats(),
     trackerTorrents: trackers.getCacheStats(),
@@ -246,7 +258,7 @@ app.get("/maintenance/cache/stats", (req, res) => {
 });
 
 /** Prunes expired cache entries and returns updated cache stats. */
-app.post("/maintenance/cache/prune", (req, res) => {
+app.post("/maintenance/cache/prune", (_req, res) => {
   const removedStash = stashExtractor.pruneCache();
   const removedTracker = trackers.pruneCache();
   const removed = removedStash + removedTracker;
@@ -259,11 +271,16 @@ app.post("/maintenance/cache/prune", (req, res) => {
 });
 
 /** Runs SQLite cache database checkpoint + VACUUM maintenance. */
-app.post("/maintenance/cache/optimize", (req, res) => {
+app.post("/maintenance/cache/optimize", (_req, res) => {
   const databases = SqliteCacheDatabase.runMaintenanceAll();
   return res.json({
     databases,
   });
+});
+
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  console.error(err);
+  return res.status(500).send("Internal server error");
 });
 
 app.listen(3000, () => console.log("Server started on port 3000"));
