@@ -1,6 +1,6 @@
 # Private Torrent Torznab
 
-Generate a Torznab-compatible RSS feed from Stash scenes and proxy private tracker downloads through your own service. This project is intended to be used as a custom indexer in tools like [Prowlarr](https://github.com/prowlarr/prowlarr).
+Generate a Torznab-compatible RSS feed from [Stash](https://github.com/stashapp/stash) scenes and proxy private tracker downloads through your own service. This project is intended to be used as a custom indexer in tools like [Prowlarr](https://github.com/prowlarr/prowlarr).
 
 ## What This Repository Does
 
