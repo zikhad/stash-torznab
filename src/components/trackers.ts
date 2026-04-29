@@ -80,8 +80,22 @@ export class Trackers {
             ? configPath
             : path.resolve(process.cwd(), configPath);
 
-        const raw = fs.readFileSync(resolvedPath, "utf8");
-        const parsed = JSON.parse(raw) as TrackerConfig[];
+        if (!fs.existsSync(resolvedPath)) {
+            throw new Error(
+                `Tracker config file not found at ${resolvedPath}. ` +
+                `Set TRACKERS_CONFIG_PATH correctly and mount your trackers.config.json into the container ` +
+                `(example mount target: /app/trackers.config.json).`
+            );
+        }
+
+        let parsed: TrackerConfig[];
+        try {
+            const raw = fs.readFileSync(resolvedPath, "utf8");
+            parsed = JSON.parse(raw) as TrackerConfig[];
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Unable to read or parse tracker config at ${resolvedPath}: ${message}`);
+        }
 
         if (!Array.isArray(parsed) || parsed.length === 0) {
             throw new Error(`Invalid tracker config at ${resolvedPath}: expected a non-empty array`);

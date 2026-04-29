@@ -103,7 +103,8 @@ docker run --rm -p 3000:3000 \
 Notes:
 
 - The image builds TypeScript and starts with `npm run start`.
-- `TRACKERS_CONFIG_PATH` defaults to `./trackers.config.json` in the image.
+- The container expects `TRACKERS_CONFIG_PATH=/app/trackers.config.json`.
+- You must provide and mount `trackers.config.json` at runtime, otherwise startup fails.
 
 ### Docker Compose
 

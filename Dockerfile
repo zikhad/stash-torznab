@@ -14,13 +14,12 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV TRACKERS_CONFIG_PATH=./trackers.config.json
+ENV TRACKERS_CONFIG_PATH=/app/trackers.config.json
 
 COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
-COPY trackers.config.json ./trackers.config.json
 
 EXPOSE 3000
 
