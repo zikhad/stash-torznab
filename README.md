@@ -1,42 +1,62 @@
 # Private Torrent Torznab
 
-Generate a Torznab-compatible RSS feed from Stash scenes and proxy torrent downloads through your own service.
+Generate a Torznab-compatible RSS feed from Stash scenes and proxy private tracker downloads through your own service. This project is intended to be used as a custom indexer in tools like [Prowlarr](https://github.com/prowlarr/prowlarr).
+
+## What This Repository Does
+
+1. Fetches scenes from your Stash GraphQL API.
+2. Filters scene URLs against configured tracker host/path rules.
+3. Picks candidate torrents by tracker priority.
+4. Exposes Torznab-compatible endpoints for indexer clients.
+5. Proxies tracker downloads via local `/download/:tracker/:id` routes.
+6. Caches Stash scenes and tracker-derived torrent metadata in SQLite.
 
 ## Features
 
-- Exposes Torznab endpoints (`/api?t=caps` and `/api?t=search&q=...`)
-- Uses Stash GraphQL as the scene source
-- Filters scene URLs by tracker host + valid torrent path
-- Prioritizes trackers in configured order
-- Proxies torrent downloads via `/download/:tracker/:id`
-- Persistent SQLite-backed caching for Stash scenes and tracker-derived torrent metadata
+- Torznab endpoints: `/api?t=caps` and `/api?t=search&q=...`
+- Tracker priority support (array order in config)
+- Download proxy endpoint for private trackers
+- Persistent SQLite cache with TTL + maintenance endpoints
+- Startup and scheduled cache refresh jobs
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 20+ (Docker image uses Node 22)
 - npm
-- A reachable Stash instance with API key
-- At least one tracker with `passkey` configured in `trackers.config.json`
+- Reachable Stash instance with API key
+- At least one tracker with a valid `passkey` in `trackers.config.json`
 
-## Setup
+## Quick Start
 
-1. Install dependencies:
+1. Install dependencies.
 
 ```bash
 npm install
 ```
 
-2. Create your environment file:
+2. Create environment file.
 
 ```bash
 cp .env.example .env
 ```
 
-3. Fill in `.env` values.
+3. Create tracker config.
+
+```bash
+cp trackers.example.config.json trackers.config.json
+```
+
+4. Fill in `.env` and `trackers.config.json`.
+
+5. Start in development mode.
+
+```bash
+npm run dev
+```
 
 ## Environment Variables
 
-See `.env.example`.
+See `.env.example` for the complete template.
 
 Required:
 
@@ -49,17 +69,49 @@ Required:
 
 Optional:
 
-- `CACHE_TTL_MS` (default `21600000`)
+- `CACHE_TTL_MS` (default `300000`)
 - `CACHE_SQLITE_PATH` (default `./data/cache.sqlite`)
 - `CACHE_CRON` (default `0 */6 * * *`)
 - `CACHE_MAINTENANCE_CRON` (default `0 3 * * *`)
 
-## Run
+## Tracker Configuration
+
+See `trackers.example.config.json`.
+
+```json
+[
+  {
+    "name": "tracker-one",
+    "host": "tracker-one.example",
+    "path": "details.php",
+    "passkey": "replace-with-tracker-one-passkey",
+    "downloadUrlTemplate": "https://tracker-one.example/download.php?id={id}&passkey={passkey}"
+  }
+]
+```
+
+Field meanings:
+
+- `name`: Unique tracker identifier used by `/download/:tracker/:id`
+- `host`: Tracker hostname used for URL matching
+- `path`: URL path fragment used to validate scene URLs
+- `passkey`: Tracker auth key
+- `downloadUrlTemplate`: Direct torrent template with `{id}` and `{passkey}` placeholders
+
+Tracker array order defines priority (first = highest).
+
+## Run Commands
 
 Development:
 
 ```bash
 npm run dev
+```
+
+Type check:
+
+```bash
+npm run typecheck
 ```
 
 Build:
@@ -68,17 +120,18 @@ Build:
 npm run build
 ```
 
-Start built app:
+Run built app:
 
 ```bash
 npm start
 ```
 
-Type check:
+## Add to Prowlarr
 
-```bash
-npm run typecheck
-```
+1. Start this service.
+2. In Prowlarr, go to Add Indexer -> Generic Torznab.
+3. Set the Torznab URL to your service URL, for example `http://localhost:3000/api`.
+4. Run a test query from Prowlarr.
 
 ## Docker
 
@@ -96,7 +149,7 @@ docker run --rm -p 3000:3000 --env-file .env stash-torznab:local
 
 Notes:
 
-- The Dockerfile runs `npm run build` and starts with `npm run start`.
+- The image builds TypeScript and starts with `npm run start`.
 - `TRACKERS_CONFIG_PATH` defaults to `./trackers.config.json` in the image.
 
 ## Docker Compose
@@ -106,26 +159,25 @@ This project includes `docker-compose.yml`.
 Start:
 
 ```bash
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
 Logs:
 
 ```bash
-docker-compose logs -f app
+docker compose logs -f app
 ```
 
 Stop:
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 Notes:
 
-- Compose loads environment values from `.env`.
-- Compose mounts `./trackers.config.json` to `/app/trackers.config.json` as read-only.
-- If your machine supports the plugin command, you can use `docker compose` instead of `docker-compose`.
+- Compose loads variables from `.env`.
+- Compose mounts `./trackers.config.json` as read-only to `/app/trackers.config.json`.
 
 ## API Endpoints
 
@@ -135,7 +187,7 @@ Returns Torznab capabilities XML.
 
 ### `GET /api?t=search&q=<query>`
 
-Returns Torznab RSS XML with matched scenes.
+Returns Torznab RSS XML containing scenes that match the query and have valid tracker URLs.
 
 Example:
 
@@ -145,29 +197,29 @@ curl "http://127.0.0.1:3000/api?t=search&q=example"
 
 ### `GET /download/:tracker/:id`
 
-Proxies torrent file download from tracker using configured passkey.
+Proxies torrent download from the configured tracker template.
 
 Example:
 
 ```bash
-curl -L "http://127.0.0.1:3000/download/tracker/1488" -o torrent.torrent
+curl -L "http://localhost:3000/download/tracker-one/1234" -o torrent.torrent
 ```
 
 ### `GET /list`
 
-Returns raw mapped scene data as JSON.
+Returns mapped scene data as JSON.
 
 ### `GET /maintenance/cache/stats`
 
-Returns cache stats for internal namespaces (`stash-scenes` and `tracker-scene-torrents`).
+Returns cache stats for `stash-scenes` and `tracker-scene-torrents`.
 
 ### `POST /maintenance/cache/prune`
 
-Prunes expired cache entries and returns updated cache stats.
+Prunes expired cache entries and returns updated stats.
 
 ### `POST /maintenance/cache/optimize`
 
-Runs SQLite WAL checkpoint (`TRUNCATE`) and `VACUUM` for opened cache databases.
+Runs SQLite WAL checkpoint (`TRUNCATE`) and `VACUUM` on opened cache databases.
 
 ## Project Structure
 
@@ -177,29 +229,16 @@ src/
   components/
     stash-extractor.ts       # Stash GraphQL client + scene cache
     trackers.ts              # Tracker loader + URL resolution
+    torznab.ts               # Torznab XML response builder
     cache.ts                 # Generic cache wrapper
-    utils.ts                 # Date and small helpers
+    scheduler.ts             # Startup + cron scheduling
   types.d.ts                 # Shared types
 trackers.config.json         # Tracker definitions (priority order)
 ```
 
-## Tracker Extension
-
-Add or edit trackers in `trackers.config.json`.
-
-Each entry supports:
-
-- `name`
-- `host`
-- `path`
-- `passkey`
-- `downloadUrlTemplate` (supports `{id}` and `{passkey}`)
-
-Array order defines priority (first = highest).
-
 ## Notes
 
-- `seeders` and `peers` are currently static in RSS output.
-- Torrent cache prewarming runs at startup and then on the `CACHE_CRON` schedule.
-- SQLite cache file maintenance (WAL checkpoint + `VACUUM`) runs at startup and then on the `CACHE_MAINTENANCE_CRON` schedule.
-- URL aliases are enabled via TypeScript paths (`@components/*`) and rewritten on build using `tsc-alias`.
+- `seeders` and `peers` are currently static values in RSS output.
+- Torrent cache prewarming runs at startup, then on `CACHE_CRON`.
+- SQLite maintenance runs at startup, then on `CACHE_MAINTENANCE_CRON`.
+- TypeScript path aliases (`@components/*`) are rewritten at build time using `tsc-alias`.
