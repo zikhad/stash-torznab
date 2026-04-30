@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.0.1](https://github.com/zikhad/stash-torznab/compare/v1.0.0...v1.0.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* **pipeline:** creating pipeline rules for deployment ([03d8daa](https://github.com/zikhad/stash-torznab/commit/03d8daaa9eb54db296336f1932de90bcadf353bb))
+
 ## 1.0.0 (2026-04-30)
 
 
