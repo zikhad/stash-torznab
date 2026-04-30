@@ -258,7 +258,7 @@ fix: handle empty scene title in search response
 chore: update docker publish workflow
 ```
 
-Local commands:
+### Local commands:
 
 ```bash
 # Validate latest commit message locally
@@ -271,12 +271,7 @@ npm run release:first
 npm run release
 ```
 
-Local commit protection:
-
-- Husky runs commitlint in `.husky/commit-msg`, so invalid commit messages are blocked before the commit is created.
-- After cloning, run `npm install` to automatically enable Git hooks (`prepare` script).
-
-CI automation:
+### CI automation:
 
 - `.github/workflows/commitlint.yml` validates commit messages on pushes and PRs to `main`.
 - `.github/workflows/release.yml` runs on `main`, executes `standard-version`, and pushes release commit + tags automatically.

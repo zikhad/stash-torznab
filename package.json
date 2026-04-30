@@ -10,7 +10,6 @@
     "start": "node dist/app.js",
     "dev": "nodemon --watch src --ext ts --exec \"tsx src/app.ts\"",
     "typecheck": "tsc --noEmit",
-    "commitlint": "commitlint --from HEAD~1 --to HEAD --verbose",
     "release": "standard-version",
     "release:first": "standard-version --first-release"
   },
@@ -35,8 +34,6 @@
     "xmlbuilder2": "^4.0.3"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.3",
-    "@commitlint/config-conventional": "^20.5.3",
     "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.6",
     "@types/luxon": "^3.7.1",
