@@ -271,6 +271,11 @@ npm run release:first
 npm run release
 ```
 
+Local commit protection:
+
+- Husky runs commitlint in `.husky/commit-msg`, so invalid commit messages are blocked before the commit is created.
+- After cloning, run `npm install` to automatically enable Git hooks (`prepare` script).
+
 CI automation:
 
 - `.github/workflows/commitlint.yml` validates commit messages on pushes and PRs to `main`.
