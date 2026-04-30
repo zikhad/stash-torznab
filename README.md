@@ -246,6 +246,36 @@ Run built app:
 npm start
 ```
 
+## Release Workflow
+
+This repository uses Conventional Commits + `standard-version` to automate version bumping, changelog generation, and git tags.
+
+Commit format examples:
+
+```text
+feat: add tracker fallback for torrent downloads
+fix: handle empty scene title in search response
+chore: update docker publish workflow
+```
+
+Local commands:
+
+```bash
+# Validate latest commit message locally
+npm run commitlint
+
+# First release only (creates initial CHANGELOG.md + tag)
+npm run release:first
+
+# Normal release (updates version/changelog and creates next tag)
+npm run release
+```
+
+CI automation:
+
+- `.github/workflows/commitlint.yml` validates commit messages on pushes and PRs to `main`.
+- `.github/workflows/release.yml` runs on `main`, executes `standard-version`, and pushes release commit + tags automatically.
+
 
 ## API Endpoints
 
