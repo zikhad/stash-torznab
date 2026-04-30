@@ -76,7 +76,7 @@ Fields meanings:
 - `name`: Unique tracker identifier used by `/download/:tracker/:id`
 - `host`: Tracker hostname used for URL matching
 - `path`: URL path fragment used to validate scene URLs
-- `passkey`: Tracker auth key
+- `passkey`: Tracker auth key. (Usually found in your profile page on the tracker website)
 - `downloadUrlTemplate`: Direct torrent template with `{id}` and `{passkey}` placeholders
 
 Tracker array order defines priority (first = highest).
@@ -158,9 +158,6 @@ Notes:
 4. Run a test query from Prowlarr.
 
 ---
-
-
-
 
 ## Local Development)
 
