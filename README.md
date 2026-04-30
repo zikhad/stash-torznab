@@ -274,7 +274,8 @@ npm run release
 ### CI automation:
 
 - `.github/workflows/commitlint.yml` validates commit messages on pushes and PRs to `main`.
-- `.github/workflows/release.yml` runs on `main`, executes `standard-version`, and pushes release commit + tags automatically.
+- `.github/workflows/release.yml` runs on `main`, executes `standard-version`, pushes the release commit + tag, and then calls `.github/workflows/docker-publish.yml` with that tag.
+- `.github/workflows/docker-publish.yml` is reusable and can also be started manually with explicit `git_ref` and `image_tag` inputs.
 
 
 ## API Endpoints

@@ -7,11 +7,14 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   release:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.release_tag.outputs.value }}
 
     steps:
       - name: Checkout repository
@@ -42,7 +45,19 @@ jobs:
       - name: Create release commit and tag
         run: npm run release
 
+      - name: Capture release tag
+        id: release_tag
+        run: echo "value=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+
       - name: Push release commit and tags
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: git push --follow-tags origin HEAD
+
+  docker:
+    needs: release
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      git_ref: ${{ needs.release.outputs.release_tag }}
+      image_tag: ${{ needs.release.outputs.release_tag }}
+    secrets: inherit
