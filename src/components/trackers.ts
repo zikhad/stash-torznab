@@ -271,7 +271,6 @@ export class Trackers {
 
         return this.cache.getOrSet(scene.id, async () => {
             const smallestTorrent = await this.getSmallestTorrent(torrentURLs);
-            console.log(`Scene:`, scene)
             return {
                 title: scene.title,
                 guid: scene.id,
