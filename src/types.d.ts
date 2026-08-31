@@ -11,7 +11,7 @@ type Scene = {
   images: {
     url: string;
   }[];
-  studio: {
+  studio?: {
     id: string;
     name: string;
   };

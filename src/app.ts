@@ -144,7 +144,7 @@ async function main() {
           title: scene.title,
           sortTitle: scene.title,
           overview: scene.details,
-          studio: scene.studio.name ?? "Unknown",
+          studio: scene.studio?.name ?? "Unknown",
           released: normalizeDate(scene.release_date),
           foreignId: scene.id,
           images: scene.images.map(image => ({
