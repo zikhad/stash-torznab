@@ -4,7 +4,7 @@ import path from "node:path";
 import { Cache } from "@components/cache";
 
 import { TorrentDecoder } from "@components/torrent-decoder";
-import { normalizeDate } from "./utils";
+import { extractTemplateToken, normalizeDate } from "./utils";
 
 const torrentDecoder = new TorrentDecoder();
 
@@ -14,8 +14,6 @@ export type TrackerConfig = {
     name: string;
     /** Hostname of the tracker, without protocol (e.g. "tracker.vip"). */
     host: string;
-    /** URL path segment that identifies a valid torrent detail page (e.g. "torrents-details.php"). */
-    path: string;
     /** Passkey for this tracker. */
     passkey: string;
     /**
@@ -162,16 +160,16 @@ export class Trackers {
      * Converts a scene's tracker URL into a local proxy download URL
      * of the form `/download/:tracker/:id`.
      * @param sourceURL - A valid tracker detail page URL from the scene.
-     * @returns The proxy URL, or `empty` if the tracker is unrecognised or has no `id` param.
+     * @returns The proxy URL, or `empty` if the tracker is unrecognised or its torrent ID cannot be extracted.
      */
     public createProxyDownloadURL(sourceURL: string) {
         const parsedURL = new URL(sourceURL);
-        const id = parsedURL.searchParams.get("id");
-        if (!id) return "";
-
         const sourceHost = normalizeHostname(parsedURL.hostname);
         const tracker = this.trackers.find((t) => normalizeHostname(t.host) === sourceHost);
         if (!tracker) return "";
+
+        const id = this.extractTorrentID(parsedURL, tracker);
+        if (!id) return "";
 
         return `${process.env.PROTOCOL}://${process.env.HOST}:${process.env.PORT}/download/${tracker.name}/${id}`;
     }
@@ -179,16 +177,16 @@ export class Trackers {
     /**
      * Creates a direct tracker download URL from a scene's tracker URL by resolving
      * @param sourceURL - A valid tracker detail page URL from the scene.
-     * @returns The direct download URL, or `empty` if the tracker is unrecognised, has no `id` param, or has no configured passkey.
+     * @returns The direct download URL, or `empty` if the tracker is unrecognised or its torrent ID cannot be extracted.
      */
     public createDirectDownloadURL(sourceURL: string) {
         const parsedURL = new URL(sourceURL);
-        const id = parsedURL.searchParams.get("id");
-        if (!id) return "";
-
         const sourceHost = normalizeHostname(parsedURL.hostname);
         const tracker = this.trackers.find((t) => normalizeHostname(t.host) === sourceHost);
         if (!tracker) return "";
+
+        const id = this.extractTorrentID(parsedURL, tracker);
+        if (!id) return "";
 
         return this.buildDownloadURL(tracker, id, tracker.passkey);
     }
@@ -214,17 +212,50 @@ export class Trackers {
     }
 
     /**
-     * Returns `true` if the URL belongs to the tracker's host and points to a valid torrent path.
+     * Returns `true` if the URL belongs to the tracker's host and contains an extractable torrent ID.
      * @param url - The URL to evaluate.
      * @param tracker - The tracker configuration to validate against.
      * @returns `true` if the URL is a valid torrent URL for the tracker, otherwise `false`.
      */
     private isValidTorrentURL(url: string, tracker: TrackerConfig): boolean {
-        const { hostname, pathname, searchParams } = new URL(url);
-        if (!searchParams.has("id")) return false;
-        if (normalizeHostname(hostname) !== normalizeHostname(tracker.host)) return false;
-        if (!pathname.includes(tracker.path)) return false;
-        return true;
+        try {
+            const parsedURL = new URL(url);
+            if (normalizeHostname(parsedURL.hostname) !== normalizeHostname(tracker.host)) return false;
+            return !!this.extractTorrentID(parsedURL, tracker);
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Extracts the torrent ID from the conventional `id` query parameter, the
+     * configured download template, or the last segment of a detail-page path.
+     */
+    private extractTorrentID(url: URL, tracker: TrackerConfig): string | undefined {
+        const queryID = url.searchParams.get("id");
+        if (queryID) return queryID;
+
+        const template = new URL(tracker.downloadUrlTemplate);
+        // URL encodes braces in pathnames (`{id}` becomes `%7Bid%7D`), so decode
+        // the configured path before interpreting its template tokens.
+        const pathID = extractTemplateToken(url.pathname, decodeURIComponent(template.pathname), "id");
+        if (pathID) return pathID;
+
+        for (const [name, valueTemplate] of template.searchParams) {
+            const value = url.searchParams.get(name);
+            if (value === null) continue;
+
+            const queryTemplateID = extractTemplateToken(value, valueTemplate, "id");
+            if (queryTemplateID) return queryTemplateID;
+        }
+
+        // Path-style detail pages commonly use `/torrent/{id}`, even when the
+        // corresponding download template has a different path altogether.
+        const pathSegments = url.pathname.split("/").filter(Boolean);
+        const lastPathSegment = pathSegments.at(-1);
+        if (lastPathSegment) return decodeURIComponent(lastPathSegment);
+
+        return undefined;
     }
 
     /**

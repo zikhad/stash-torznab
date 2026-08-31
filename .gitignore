@@ -3,5 +3,6 @@ bruno/
 .env
 dist/
 .DS_Store
+.idea/
 
 trackers.config.json
