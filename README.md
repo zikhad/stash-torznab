@@ -66,7 +66,6 @@ See [trackers.config.json](./trackers.example.config.json) for the complete temp
   {
     "name": "tracker-one",
     "host": "tracker-one.example",
-    "path": "details.php",
     "passkey": "replace_with_tracker_one_passkey",
     "downloadUrlTemplate": "https://tracker-one.example/download.php?id={id}&passkey={passkey}"
   }
@@ -75,9 +74,12 @@ See [trackers.config.json](./trackers.example.config.json) for the complete temp
 Fields meanings:
 - `name`: Unique tracker identifier used by `/download/:tracker/:id`
 - `host`: Tracker hostname used for URL matching
-- `path`: URL path fragment used to validate scene URLs
 - `passkey`: Tracker auth key. (Usually found in your profile page on the tracker website)
 - `downloadUrlTemplate`: Direct torrent template with `{id}` and `{passkey}` placeholders
+
+Scene torrent URLs are matched by tracker host. Torrent IDs can be supplied through an
+`id` query parameter (for example, `torrents.php?id=123`) or as the final path segment
+(for example, `/torrent/123`).
 
 Tracker array order defines priority (first = highest).
 
