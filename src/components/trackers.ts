@@ -271,6 +271,7 @@ export class Trackers {
 
         return this.cache.getOrSet(scene.id, async () => {
             const smallestTorrent = await this.getSmallestTorrent(torrentURLs);
+            console.log(`Scene:`, scene)
             return {
                 title: scene.title,
                 guid: scene.id,
@@ -281,7 +282,7 @@ export class Trackers {
                 category: "6000",
                 seeders: 0,
                 peers: 0,
-                studio: scene.studio.name,
+                studio: scene.studio?.name ?? "unknown",
                 performers: scene.performers.map(p => p.performer.name).join(", "),
                 tags: scene.tags.map(t => t.name),
             }
