@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.1.0](https://github.com/zikhad/stash-torznab/compare/v1.0.4...v1.1.0) (2026-08-31)
+
+
+### Features
+
+* changing how to extract supported trackers urls ([48bd94f](https://github.com/zikhad/stash-torznab/commit/48bd94fd3a70e5787fdaa52bfc2eec9833e6707a))
+
 ### [1.0.4](https://github.com/zikhad/stash-torznab/compare/v1.0.3...v1.0.4) (2026-08-31)
 
 ### [1.0.3](https://github.com/zikhad/stash-torznab/compare/v1.0.2...v1.0.3) (2026-08-31)
